@@ -44,7 +44,9 @@ jobs:
       # Step 7: Build Docker image
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_IMAGE_NAME }}:latest .
+          docker build \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }} \
+            -t ${{ secrets.DOCKER_IMAGE_NAME }}:latest .
           docker tag ${{ secrets.DOCKER_IMAGE_NAME }}:latest ${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.sha }}
 
       # Step 8: Push Docker image to Docker Hub

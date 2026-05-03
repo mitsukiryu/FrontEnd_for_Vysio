@@ -15,6 +15,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Build args for Next.js public env vars (baked in at build time)
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
 # Build Next.js application
 RUN npm run build
 
