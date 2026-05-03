@@ -5,6 +5,8 @@ export interface GenerateState {
   error: string | null;
   data: {
     downloadUrl: string;
+    htmlCode: string;
+    cssCode: string;
   } | null;
 }
 
@@ -22,7 +24,7 @@ const generateSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    generateSuccess: (state, action: PayloadAction<{ downloadUrl: string }>) => {
+    generateSuccess: (state, action: PayloadAction<{ downloadUrl: string; htmlCode: string; cssCode: string }>) => {
       state.loading = false;
       state.data = action.payload;
       state.error = null;

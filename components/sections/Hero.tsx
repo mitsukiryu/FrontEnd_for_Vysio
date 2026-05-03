@@ -6,8 +6,116 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { motion } from 'framer-motion'
 import { useDispatch, useSelector } from 'react-redux'
-import { uploadRequest } from '@/lib/features/upload/uploadSlice'
+import { uploadRequest, uploadSuccess } from '@/lib/features/upload/uploadSlice'
+import { generateSuccess } from '@/lib/features/generate/generateSlice'
 import { RootState } from '@/lib/store'
+
+// Demo HTML and CSS for preview
+const DEMO_HTML = `<div class="hero-section">
+  <div class="container">
+    <div class="content">
+      <h1 class="title">Welcome to Vysio</h1>
+      <p class="subtitle">Transform your designs into production-ready code instantly</p>
+      <div class="button-group">
+        <button class="btn btn-primary">Get Started</button>
+        <button class="btn btn-secondary">Learn More</button>
+      </div>
+    </div>
+    <div class="image-placeholder">
+      <div class="placeholder-icon">🎨</div>
+    </div>
+  </div>
+</div>`
+
+const DEMO_CSS = `.hero-section {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.content {
+  color: white;
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn {
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: white;
+  color: #667eea;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.image-placeholder {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  padding: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.placeholder-icon {
+  font-size: 8rem;
+}
+
+@media (max-width: 768px) {
+  .container {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .title {
+    font-size: 2.5rem;
+  }
+}`
 
 export default function Hero() {
   const [isMobile, setIsMobile] = useState(false)
@@ -25,8 +133,22 @@ export default function Hero() {
 
   const handleAddImage = () => {
     if (urlInput.trim()) {
-      // Dispatch URL upload
-      dispatch(uploadRequest(urlInput.trim()))
+      // Demo mode: simulate upload with URL
+      const fileUrl = urlInput.trim()
+      dispatch(uploadSuccess({
+        fileId: 'demo-' + Date.now(),
+        fileUrl: fileUrl
+      }))
+      
+      // Immediately show demo component
+      setTimeout(() => {
+        dispatch(generateSuccess({
+          downloadUrl: 'demo-url',
+          htmlCode: DEMO_HTML,
+          cssCode: DEMO_CSS
+        }))
+      }, 1500) // Simulate generation delay
+      
       setUrlInput('')
     } else {
       // Trigger file input
@@ -37,7 +159,22 @@ export default function Hero() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      dispatch(uploadRequest(file))
+      // Demo mode: create local URL for uploaded file
+      const fileUrl = URL.createObjectURL(file)
+      
+      dispatch(uploadSuccess({
+        fileId: 'demo-' + Date.now(),
+        fileUrl: fileUrl
+      }))
+      
+      // Immediately show demo component
+      setTimeout(() => {
+        dispatch(generateSuccess({
+          downloadUrl: 'demo-url',
+          htmlCode: DEMO_HTML,
+          cssCode: DEMO_CSS
+        }))
+      }, 1500) // Simulate generation delay
     }
   }
 

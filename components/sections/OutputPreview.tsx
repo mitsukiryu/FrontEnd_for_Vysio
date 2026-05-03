@@ -1,27 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Image as ImageIcon, Code2 } from 'lucide-react'
+import { Image as ImageIcon, Code2, Loader2, AlertCircle, Eye } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import ScrollReveal from '@/components/effects/ScrollReveal'
+import ComponentPreview from '@/components/ui/ComponentPreview'
 import { useDispatch, useSelector } from 'react-redux'
 import { generateRequest } from '@/lib/features/generate/generateSlice'
 import { RootState } from '@/lib/store'
 
 export default function OutputPreview() {
-  const [activeTab, setActiveTab] = useState<'html' | 'css'>('html')
+  const [activeTab, setActiveTab] = useState<'preview' | 'html' | 'css'>('preview')
   const dispatch = useDispatch()
   const uploadState = useSelector((state: RootState) => state.upload)
   const generateState = useSelector((state: RootState) => state.generate)
 
-  // Auto-dispatch generateRequest after successful upload
-  useEffect(() => {
-    if (uploadState.data?.fileId && !generateState.loading && !generateState.data) {
-      dispatch(generateRequest({ fileId: uploadState.data.fileId }))
-    }
-  }, [uploadState.data, generateState.loading, generateState.data, dispatch])
+  // Note: In demo mode, generation is triggered directly from Hero component
+  // When backend is ready, uncomment the auto-trigger below:
+  // useEffect(() => {
+  //   if (uploadState.data?.fileId && !generateState.loading && !generateState.data) {
+  //     dispatch(generateRequest({ fileId: uploadState.data.fileId }))
+  //   }
+  // }, [uploadState.data, generateState.loading, generateState.data, dispatch])
 
-  const htmlCode = `<div class="hero-section">
+  // Get the actual code from Redux state or use placeholder
+  const htmlCode = generateState.data?.htmlCode || `<div class="hero-section">
   <div class="container">
     <h1 class="title">
       Welcome to Our Platform
@@ -35,7 +38,7 @@ export default function OutputPreview() {
   </div>
 </div>`
 
-  const cssCode = `.hero-section {
+  const cssCode = generateState.data?.cssCode || `.hero-section {
   display: flex;
   align-items: center;
   min-height: 100vh;
@@ -70,6 +73,11 @@ export default function OutputPreview() {
 .cta-button:hover {
   transform: scale(1.05);
 }`
+
+  const hasUploadedImage = !!uploadState.data?.fileUrl
+  const isGenerating = generateState.loading
+  const hasGeneratedCode = !!generateState.data
+  const generationError = generateState.error
 
   return (
     <section className="section-padding">
@@ -118,39 +126,51 @@ export default function OutputPreview() {
                   >
                     Input Design
                   </h3>
-                  <p className="text-sm" style={{ color: '#64748b' }}>Your uploaded image</p>
+                  <p className="text-sm" style={{ color: '#64748b' }}>
+                    {hasUploadedImage ? 'Your uploaded image' : 'Upload an image to get started'}
+                  </p>
                 </div>
               </div>
               
               <div
-                className="aspect-video rounded-2xl flex items-center justify-center"
+                className="aspect-video rounded-2xl flex items-center justify-center overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.2) 100%)',
+                  background: hasUploadedImage
+                    ? 'transparent'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.2) 100%)',
                   border: '1px solid rgba(255, 255, 255, 0.3)'
                 }}
               >
-                <div className="text-center p-8">
-                  <div
-                    className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
-                  >
-                    <ImageIcon size={40} style={{ color: '#0a0a0a' }} />
+                {hasUploadedImage ? (
+                  <img
+                    src={uploadState.data!.fileUrl}
+                    alt="Uploaded design"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center p-8">
+                    <div
+                      className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
+                    >
+                      <ImageIcon size={40} style={{ color: '#0a0a0a' }} />
+                    </div>
+                    <p
+                      className="font-medium mb-2"
+                      style={{ color: '#0a0a0a' }}
+                    >
+                      Design Preview
+                    </p>
+                    <p className="text-sm" style={{ color: '#64748b' }}>
+                      Your UI screenshot appears here
+                    </p>
                   </div>
-                  <p
-                    className="font-medium mb-2"
-                    style={{ color: '#0a0a0a' }}
-                  >
-                    Design Preview
-                  </p>
-                  <p className="text-sm" style={{ color: '#64748b' }}>
-                    Your UI screenshot appears here
-                  </p>
-                </div>
+                )}
               </div>
             </GlassCard>
           </ScrollReveal>
 
-          {/* Right: Code Output */}
+          {/* Right: Code Output & Preview */}
           <ScrollReveal delay={0.2}>
             <GlassCard className="h-full">
               <div className="flex items-center justify-between mb-6">
@@ -159,7 +179,11 @@ export default function OutputPreview() {
                     className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.05)' }}
                   >
-                    <Code2 size={20} style={{ color: '#0a0a0a' }} />
+                    {isGenerating ? (
+                      <Loader2 size={20} className="animate-spin" style={{ color: '#0a0a0a' }} />
+                    ) : (
+                      <Code2 size={20} style={{ color: '#0a0a0a' }} />
+                    )}
                   </div>
                   <div>
                     <h3
@@ -170,45 +194,122 @@ export default function OutputPreview() {
                         fontSize: '1.125rem'
                       }}
                     >
-                      Generated Code
+                      {isGenerating ? 'Generating...' : 'Generated Code'}
                     </h3>
-                    <p className="text-sm" style={{ color: '#64748b' }}>Production-ready output</p>
+                    <p className="text-sm" style={{ color: '#64748b' }}>
+                      {isGenerating ? 'AI is working on your design' : 'Production-ready output'}
+                    </p>
                   </div>
                 </div>
 
                 {/* Toggle Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setActiveTab('html')}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity"
-                    style={{
-                      backgroundColor: activeTab === 'html' ? '#0a0a0a' : 'rgba(0, 0, 0, 0.05)',
-                      color: activeTab === 'html' ? '#ffffff' : '#475569'
-                    }}
-                  >
-                    HTML
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('css')}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity"
-                    style={{
-                      backgroundColor: activeTab === 'css' ? '#0a0a0a' : 'rgba(0, 0, 0, 0.05)',
-                      color: activeTab === 'css' ? '#ffffff' : '#475569'
-                    }}
-                  >
-                    CSS
-                  </button>
-                </div>
+                {hasGeneratedCode && !isGenerating && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setActiveTab('preview')}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
+                      style={{
+                        backgroundColor: activeTab === 'preview' ? '#0a0a0a' : 'rgba(0, 0, 0, 0.05)',
+                        color: activeTab === 'preview' ? '#ffffff' : '#475569'
+                      }}
+                    >
+                      <Eye size={16} className="inline mr-1" />
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('html')}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity"
+                      style={{
+                        backgroundColor: activeTab === 'html' ? '#0a0a0a' : 'rgba(0, 0, 0, 0.05)',
+                        color: activeTab === 'html' ? '#ffffff' : '#475569'
+                      }}
+                    >
+                      HTML
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('css')}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity"
+                      style={{
+                        backgroundColor: activeTab === 'css' ? '#0a0a0a' : 'rgba(0, 0, 0, 0.05)',
+                        color: activeTab === 'css' ? '#ffffff' : '#475569'
+                      }}
+                    >
+                      CSS
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Code Display */}
-              <div
-                className="rounded-2xl p-6 overflow-auto max-h-96"
-                style={{ backgroundColor: '#0a0a0a' }}
-              >
-                <pre className="text-sm font-mono leading-relaxed" style={{ color: '#e2e8f0' }}>
-                  <code>{activeTab === 'html' ? htmlCode : cssCode}</code>
-                </pre>
+              {/* Content Display */}
+              <div className="rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
+                {/* Loading State */}
+                {isGenerating && (
+                  <div className="flex items-center justify-center h-96 bg-gradient-to-br from-blue-50 to-purple-50">
+                    <div className="text-center">
+                      <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: '#0a0a0a' }} />
+                      <p className="font-medium mb-2" style={{ color: '#0a0a0a' }}>
+                        Generating your component...
+                      </p>
+                      <p className="text-sm" style={{ color: '#64748b' }}>
+                        This may take a few moments
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error State */}
+                {generationError && !isGenerating && (
+                  <div className="flex items-center justify-center h-96 bg-red-50">
+                    <div className="text-center p-6">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+                      <p className="font-medium mb-2 text-red-600">Generation Failed</p>
+                      <p className="text-sm text-red-500">{generationError}</p>
+                      <button
+                        onClick={() => uploadState.data?.fileId && dispatch(generateRequest({ fileId: uploadState.data.fileId }))}
+                        className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success State - Show Preview or Code */}
+                {hasGeneratedCode && !isGenerating && !generationError && (
+                  <>
+                    {activeTab === 'preview' ? (
+                      <ComponentPreview
+                        htmlCode={htmlCode}
+                        cssCode={cssCode}
+                        className="h-96"
+                      />
+                    ) : (
+                      <div
+                        className="p-6 overflow-auto max-h-96"
+                        style={{ backgroundColor: '#0a0a0a' }}
+                      >
+                        <pre className="text-sm font-mono leading-relaxed" style={{ color: '#e2e8f0' }}>
+                          <code>{activeTab === 'html' ? htmlCode : cssCode}</code>
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Initial State - No upload yet */}
+                {!hasUploadedImage && !isGenerating && !generationError && (
+                  <div className="flex items-center justify-center h-96 bg-gradient-to-br from-gray-50 to-gray-100">
+                    <div className="text-center p-8">
+                      <Code2 className="w-16 h-16 mx-auto mb-4" style={{ color: '#94a3b8' }} />
+                      <p className="font-medium mb-2" style={{ color: '#64748b' }}>
+                        Upload an image to see the magic
+                      </p>
+                      <p className="text-sm" style={{ color: '#94a3b8' }}>
+                        Your generated component will appear here
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </GlassCard>
           </ScrollReveal>
