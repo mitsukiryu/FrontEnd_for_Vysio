@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Image as ImageIcon, Code2, Loader2, AlertCircle, Eye } from 'lucide-react'
+import { Image as ImageIcon, Code2, Loader2, AlertCircle, Eye, Download, CheckCircle, Clock } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import ScrollReveal from '@/components/effects/ScrollReveal'
 import ComponentPreview from '@/components/ui/ComponentPreview'
 import { useDispatch, useSelector } from 'react-redux'
-import { generateRequest } from '@/lib/features/generate/generateSlice'
 import { RootState } from '@/lib/store'
+import { motion } from 'framer-motion'
 
 export default function OutputPreview() {
   const [activeTab, setActiveTab] = useState<'preview' | 'html' | 'css'>('preview')
@@ -15,16 +15,8 @@ export default function OutputPreview() {
   const uploadState = useSelector((state: RootState) => state.upload)
   const generateState = useSelector((state: RootState) => state.generate)
 
-  // Note: In demo mode, generation is triggered directly from Hero component
-  // When backend is ready, uncomment the auto-trigger below:
-  // useEffect(() => {
-  //   if (uploadState.data?.fileId && !generateState.loading && !generateState.data) {
-  //     dispatch(generateRequest({ fileId: uploadState.data.fileId }))
-  //   }
-  // }, [uploadState.data, generateState.loading, generateState.data, dispatch])
-
   // Get the actual code from Redux state or use placeholder
-  const htmlCode = generateState.data?.htmlCode || `<div class="hero-section">
+  const htmlCode = generateState.htmlCode || `<div class="hero-section">
   <div class="container">
     <h1 class="title">
       Welcome to Our Platform
@@ -38,7 +30,7 @@ export default function OutputPreview() {
   </div>
 </div>`
 
-  const cssCode = generateState.data?.cssCode || `.hero-section {
+  const cssCode = generateState.cssCode || `.hero-section {
   display: flex;
   align-items: center;
   min-height: 100vh;
@@ -76,25 +68,99 @@ export default function OutputPreview() {
 
   const hasUploadedImage = !!uploadState.data?.fileUrl
   const isGenerating = generateState.loading
-  const hasGeneratedCode = !!generateState.data
+  const hasGeneratedCode = !!generateState.htmlCode
   const generationError = generateState.error
+
+  // Get status display info
+  const getStatusInfo = () => {
+    const status = generateState.status
+    const mode = generateState.mode
+
+    if (status === 'idle') return null
+
+    const statusConfig = {
+      queued: { label: 'Queued', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
+      picked: { label: 'Starting', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Loader2 },
+      coding: { label: 'Generating Code', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: Code2 },
+      packaging: { label: 'Finalizing', color: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: Download },
+      completed: { label: 'Completed', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle },
+      failed: { label: 'Failed', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle },
+    }
+
+    return statusConfig[status] || null
+  }
+
+  const statusInfo = getStatusInfo()
 
   return (
     <section className="section-padding">
       <div className="container-custom">
         <ScrollReveal>
-          <div className="text-center mb-20">
-            <h2
-              className="text-5xl md:text-6xl mb-6"
-              style={{
-                fontFamily: 'var(--font-instrument)',
-                fontWeight: 400,
-                letterSpacing: '-0.02em',
-                color: '#0a0a0a'
-              }}
-            >
-              Preview & <span style={{ fontStyle: 'italic' }}>Export</span>
-            </h2>
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <h2
+                className="text-5xl md:text-6xl"
+                style={{
+                  fontFamily: 'var(--font-instrument)',
+                  fontWeight: 400,
+                  letterSpacing: '-0.02em',
+                  color: '#0a0a0a'
+                }}
+              >
+                Preview & <span style={{ fontStyle: 'italic' }}>Export</span>
+              </h2>
+              
+              {/* Mode Badge */}
+              {generateState.mode && (
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  generateState.mode === 'demo'
+                    ? 'bg-gray-100 text-gray-700'
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {generateState.mode === 'demo' ? '🎨 Demo' : '🚀 API'} Mode
+                </span>
+              )}
+            </div>
+
+            {/* Status Indicator */}
+            {statusInfo && generateState.status !== 'idle' && generateState.status !== 'completed' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mb-6 inline-flex items-center gap-3 px-4 py-3 rounded-lg border ${statusInfo.color}`}
+              >
+                <statusInfo.icon
+                  size={20}
+                  className={statusInfo.icon === Loader2 ? 'animate-spin' : ''}
+                />
+                <div className="text-left">
+                  <div className="font-medium text-sm">{statusInfo.label}</div>
+                  {generateState.mode === 'api' && (
+                    <div className="text-xs opacity-75 mt-1">
+                      {generateState.progress > 0 && `${generateState.progress}% • `}
+                      Iteration {generateState.currentIteration} of {generateState.maxIterations}
+                      {generateState.latestScore && ` • Score: ${(generateState.latestScore * 100).toFixed(0)}%`}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Completion Status */}
+            {generateState.status === 'completed' && hasGeneratedCode && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg"
+              >
+                <CheckCircle size={18} className="text-green-600" />
+                <span className="text-sm text-green-700 font-medium">
+                  Generation Complete
+                  {generateState.latestScore && ` • Quality: ${(generateState.latestScore * 100).toFixed(0)}%`}
+                </span>
+              </motion.div>
+            )}
+
             <p
               className="text-lg max-w-2xl mx-auto"
               style={{ color: '#334155', fontWeight: 400 }}
@@ -263,13 +329,10 @@ export default function OutputPreview() {
                     <div className="text-center p-6">
                       <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
                       <p className="font-medium mb-2 text-red-600">Generation Failed</p>
-                      <p className="text-sm text-red-500">{generationError}</p>
-                      <button
-                        onClick={() => uploadState.data?.fileId && dispatch(generateRequest({ fileId: uploadState.data.fileId }))}
-                        className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Retry
-                      </button>
+                      <p className="text-sm text-red-500 mb-4">{generationError}</p>
+                      <p className="text-xs text-gray-600">
+                        Please try uploading a new image or switch to Demo Mode
+                      </p>
                     </div>
                   </div>
                 )}

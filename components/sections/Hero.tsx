@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Upload, ImagePlus } from 'lucide-react'
+import { Upload, ImagePlus, Key, ChevronDown } from 'lucide-react'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { motion } from 'framer-motion'
 import { useDispatch, useSelector } from 'react-redux'
-import { uploadRequest, uploadSuccess } from '@/lib/features/upload/uploadSlice'
-import { generateSuccess } from '@/lib/features/generate/generateSlice'
+import { uploadSuccess } from '@/lib/features/upload/uploadSlice'
+import { generateRequest, setGenerateMode, GenerateMode } from '@/lib/features/generate/generateSlice'
 import { RootState } from '@/lib/store'
 
 // Demo HTML and CSS for preview
@@ -120,9 +120,18 @@ const DEMO_CSS = `.hero-section {
 export default function Hero() {
   const [isMobile, setIsMobile] = useState(false)
   const [urlInput, setUrlInput] = useState('')
+  const [mode, setMode] = useState<GenerateMode>('demo')
+  const [openRouterKey, setOpenRouterKey] = useState('')
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dispatch = useDispatch()
-  const { loading, error } = useSelector((state: RootState) => state.upload)
+  
+  const uploadState = useSelector((state: RootState) => state.upload)
+  const generateState = useSelector((state: RootState) => state.generate)
+
+  // Get OpenRouter key from env as fallback
+  const apiKey = openRouterKey || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || ''
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -131,23 +140,31 @@ export default function Hero() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  const handleModeChange = (newMode: GenerateMode) => {
+    setMode(newMode)
+    dispatch(setGenerateMode(newMode))
+    if (newMode === 'demo') {
+      setShowApiKeyInput(false)
+    }
+  }
+
   const handleAddImage = () => {
     if (urlInput.trim()) {
-      // Demo mode: simulate upload with URL
+      // For URL input, we'll treat it as demo mode for now
       const fileUrl = urlInput.trim()
       dispatch(uploadSuccess({
-        fileId: 'demo-' + Date.now(),
+        fileId: 'url-' + Date.now(),
         fileUrl: fileUrl
       }))
       
-      // Immediately show demo component
-      setTimeout(() => {
-        dispatch(generateSuccess({
-          downloadUrl: 'demo-url',
-          htmlCode: DEMO_HTML,
-          cssCode: DEMO_CSS
-        }))
-      }, 1500) // Simulate generation delay
+      // Create a dummy file for demo mode
+      const dummyFile = new File([''], 'url-image.png', { type: 'image/png' })
+      
+      // Trigger generation in demo mode
+      dispatch(generateRequest({
+        file: dummyFile,
+        mode: 'demo',
+      }))
       
       setUrlInput('')
     } else {
@@ -159,22 +176,29 @@ export default function Hero() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Demo mode: create local URL for uploaded file
+      // Validate file type
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
+      if (!validTypes.includes(file.type)) {
+        alert('Please upload a PNG, JPG, JPEG, or WEBP image')
+        return
+      }
+
+      // Store file and create preview URL
+      setSelectedFile(file)
       const fileUrl = URL.createObjectURL(file)
       
       dispatch(uploadSuccess({
-        fileId: 'demo-' + Date.now(),
+        fileId: mode + '-' + Date.now(),
         fileUrl: fileUrl
       }))
       
-      // Immediately show demo component
-      setTimeout(() => {
-        dispatch(generateSuccess({
-          downloadUrl: 'demo-url',
-          htmlCode: DEMO_HTML,
-          cssCode: DEMO_CSS
-        }))
-      }, 1500) // Simulate generation delay
+      // Trigger generation with selected mode
+      dispatch(generateRequest({
+        file: file,
+        mode: mode,
+        openRouterKey: mode === 'api' ? apiKey : undefined,
+        userNote: 'Generate source code matching this image.',
+      }))
     }
   }
 
@@ -219,6 +243,81 @@ export default function Hero() {
             From pixels to code — instantly using multi-agent intelligence
           </motion.p>
 
+          {/* Mode Toggle and API Key Input */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.35 }}
+            className="max-w-3xl mx-auto mb-4 flex flex-col sm:flex-row items-center justify-center gap-3"
+          >
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full p-1 border border-gray-200">
+              <button
+                onClick={() => handleModeChange('demo')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  mode === 'demo'
+                    ? 'bg-black text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Demo Mode
+              </button>
+              <button
+                onClick={() => handleModeChange('api')}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  mode === 'api'
+                    ? 'bg-black text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                API Mode
+              </button>
+            </div>
+
+            {/* API Key Toggle (only in API mode) */}
+            {mode === 'api' && (
+              <button
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-gray-300 transition-all"
+              >
+                <Key size={16} />
+                <span>{showApiKeyInput ? 'Hide' : 'Add'} API Key</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${showApiKeyInput ? 'rotate-180' : ''}`}
+                />
+              </button>
+            )}
+          </motion.div>
+
+          {/* API Key Input (collapsible) */}
+          {mode === 'api' && showApiKeyInput && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="max-w-3xl mx-auto mb-4"
+            >
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  OpenRouter API Key (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={openRouterKey}
+                  onChange={(e) => setOpenRouterKey(e.target.value)}
+                  placeholder="sk-or-v1-..."
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black/20 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {apiKey
+                    ? '✓ Using provided or environment API key'
+                    : '⚠️ No API key provided. Get one from openrouter.ai/keys'}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Input Field */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -249,7 +348,7 @@ export default function Hero() {
               button={
                 <button
                   onClick={handleAddImage}
-                  disabled={loading}
+                  disabled={generateState.loading}
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     backgroundColor: '#0a0a0a',
@@ -257,12 +356,51 @@ export default function Hero() {
                   }}
                 >
                   <ImagePlus size={18} />
-                  {loading ? 'Uploading...' : 'Add Image'}
+                  {generateState.loading ? 'Processing...' : 'Add Image'}
                 </button>
               }
             />
-            {error && (
-              <p className="text-red-500 text-sm mt-2 text-center">{error}</p>
+            
+            {/* Error Message */}
+            {generateState.error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg"
+              >
+                <p className="text-red-600 text-sm text-center">
+                  {generateState.error}
+                </p>
+                {mode === 'api' && (
+                  <button
+                    onClick={() => handleModeChange('demo')}
+                    className="mt-2 text-xs text-red-700 hover:text-red-900 underline mx-auto block"
+                  >
+                    Switch to Demo Mode
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {/* Status Indicator */}
+            {generateState.loading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-3 text-center"
+              >
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-blue-700">
+                    {mode === 'demo' ? 'Generating demo...' : `${generateState.status}...`}
+                  </span>
+                  {mode === 'api' && generateState.progress > 0 && (
+                    <span className="text-xs text-blue-600">
+                      {generateState.progress}%
+                    </span>
+                  )}
+                </div>
+              </motion.div>
             )}
           </motion.div>
         </div>
