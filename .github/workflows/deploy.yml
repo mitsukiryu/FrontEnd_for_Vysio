@@ -3,7 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-and-deploy:
@@ -62,22 +62,22 @@ jobs:
           script: |
             # Navigate to deployment directory
             cd /opt/vysio-landing || exit 1
-            
+
             # Set environment variable for docker-compose
             export DOCKER_IMAGE_NAME=${{ secrets.DOCKER_IMAGE_NAME }}
-            
+
             # Pull latest image
             docker-compose pull
-            
+
             # Stop old container
             docker-compose down
-            
+
             # Start new container
             docker-compose up -d
-            
+
             # Wait for container to be healthy
             sleep 10
-            
+
             # Check if container is running
             if [ "$(docker ps -q -f name=vysio-landing)" ]; then
               echo "✅ Deployment successful!"
@@ -87,7 +87,7 @@ jobs:
               docker logs vysio-landing
               exit 1
             fi
-            
+
             # Clean up old images
             docker image prune -af --filter "until=24h"
 
