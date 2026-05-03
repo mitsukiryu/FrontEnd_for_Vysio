@@ -14,8 +14,8 @@ export default function Export() {
   const downloadState = useSelector((state: RootState) => state.download)
 
   const handleExport = () => {
-    if (generateState.data?.downloadUrl) {
-      dispatch(downloadRequest({ downloadUrl: generateState.data.downloadUrl }))
+    if (generateState.downloadUrl) {
+      dispatch(downloadRequest({ downloadUrl: generateState.downloadUrl }))
     }
   }
   return (
@@ -122,7 +122,7 @@ export default function Export() {
               {/* CTA Button */}
               <button
                 onClick={handleExport}
-                disabled={!generateState.data?.downloadUrl || downloadState.loading}
+                disabled={!generateState.downloadUrl || downloadState.loading}
                 className="text-lg px-10 py-4 rounded-full inline-flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   backgroundColor: '#0a0a0a',
@@ -136,7 +136,7 @@ export default function Export() {
               {downloadState.error && (
                 <p className="text-red-500 text-sm mt-4">{downloadState.error}</p>
               )}
-              {!generateState.data?.downloadUrl && (
+              {!generateState.downloadUrl && (
                 <p className="text-amber-600 text-sm mt-4">Please upload an image first to generate code</p>
               )}
 
