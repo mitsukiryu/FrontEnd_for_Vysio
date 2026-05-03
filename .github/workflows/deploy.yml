@@ -68,13 +68,13 @@ jobs:
             export DOCKER_IMAGE_NAME=${{ secrets.DOCKER_IMAGE_NAME }}
 
             # Pull latest image
-            docker-compose pull
+            docker compose pull
 
             # Stop old container
-            docker-compose down
+            docker compose down
 
             # Start new container
-            docker-compose up -d
+            docker compose up -d
 
             # Wait for container to be healthy
             sleep 10
