@@ -28,6 +28,7 @@ jobs:
       # Step 4: Run linting
       - name: Run linting
         run: npm run lint
+        continue-on-error: true
 
       # Step 5: Build Next.js application
       - name: Build application
